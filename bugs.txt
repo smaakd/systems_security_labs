@@ -1,0 +1,56 @@
+
+[http.c:106]
+buffer overflow into the buffer 'reqpath' which is of size 2KB whereas sp1 can be as long as more 
+than 8000 bytes.
+    
+     <offending lines of code>
+     url_decode(reqpath, sp1);
+
+
+[http.c:111]
+buffer overflow into static variable 'envp' of 8KB because logically all of the buf plus some
+constant amount of data is stuufed in envp and since buf is 8KB at max it may cause to overflow.
+
+    <offending lines of code>
+    envp += sprintf(envp, "REQUEST_METHOD=%s", buf) + 1;
+    envp += sprintf(envp, "SERVER_PROTOCOL=%s", sp2) + 1;
+    envp += sprintf(envp, "REQUEST_URI=%s", reqpath) + 1;
+    envp += sprintf(envp, "SERVER_NAME=zoobar.org") + 1;
+
+
+[http.c:162]
+buffer overflow into the buffer 'value' which is of size 2KB whereas sp can be as long as more
+than 8000 bytes.
+
+     <offending lines of code>
+     url_decode(value, sp);
+
+
+[http.c:169]
+buffer overflow into envvar which 512 bytes long and buf is 8KB by the unsafe function sprintf.
+
+     <offending lines of code>
+     sprintf(envvar, "HTTP_%s", buf);
+
+
+
+
+[http.c:286]
+
+`char pn[1024]` is declared on line 280. In line 286, `strcat(pn, name)` is called.
+Since the name var that is passed to the http_serve where strcat is called is of size 1024, 
+and strcat concatenates strings without checking their length, we can cause an overflow on pn.
+
+Potentially, this exploit could not be prevented with stack canaries since a pointer to a function 
+(handler *, line 279) could be overwritten to point to a malicious function. 
+    
+    <offending lines of code>
+    void (*handler)(int, const char *) = http_serve_none;
+    char pn[1024];
+    struct stat st;
+    getcwd(pn, sizeof(pn));
+    setenv("DOCUMENT_ROOT", pn, 1);
+    strcat(pn, name);
+
+
+
